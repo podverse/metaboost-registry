@@ -7,11 +7,12 @@ removed by typing a single hyphen (-).
 
 Environment:
   OPENSSL_BIN   Path to openssl (default: openssl). Use Homebrew OpenSSL 3 on macOS if needed.
+
+This script accepts no command-line arguments — run ./scripts/registry-app from your fork.
 """
 
 from __future__ import annotations
 
-import argparse
 import base64
 import json
 import os
@@ -19,7 +20,6 @@ import re
 import shutil
 import subprocess
 import sys
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -37,7 +37,7 @@ def repo_root_from_script() -> Path:
             return d
     sys.exit(
         "Could not locate metaboost-registry root (expected schema/app-record.schema.json "
-        "in a parent of this script). Pass --repo-root."
+        "in a parent of this script). Run ./scripts/registry-app from inside your fork."
     )
 
 
@@ -215,26 +215,13 @@ def run_validate(repo: Path) -> None:
         sys.exit(r.returncode)
 
 
-def write_record(path: Path, data: dict[str, Any], dry_run: bool) -> None:
+def write_record(path: Path, data: dict[str, Any]) -> None:
     text = json.dumps(data, indent=2, ensure_ascii=False) + "\n"
-    if dry_run:
-        print(text)
-        return
     path.write_text(text, encoding="utf-8")
     print(f"Wrote {path}")
 
 
-def cmd_create(
-    *,
-    repo: Path,
-    app_id: str,
-    rotate: bool,
-    no_validate: bool,
-    dry_run: bool,
-    no_keygen: bool,
-) -> None:
-    if rotate:
-        sys.exit("--rotate-key applies when updating an existing app record.")
+def cmd_create(*, repo: Path, app_id: str) -> None:
     out_path = repo / "registry" / "apps" / f"{app_id}.app.json"
 
     ossl = openssl_bin()
@@ -250,41 +237,19 @@ def cmd_create(
     idx = 0
     priv = private_key_path(app_id, idx)
     pub = public_key_path(app_id, idx)
-    temp_key_ctx: Any = None
-    if dry_run:
-        temp_key_ctx = tempfile.TemporaryDirectory(prefix="metaboost-registry-keys-")
-        priv = Path(temp_key_ctx.name) / "private.pem"
-        pub = Path(temp_key_ctx.name) / "public.pem"
 
-    if no_keygen:
-        if dry_run:
-            sys.exit("--no-keygen cannot be combined with --dry-run (no stable key path).")
-        if not private_key_path(app_id, idx).is_file():
-            sys.exit(
-                f"--no-keygen but private key not found: {private_key_path(app_id, idx)}"
-            )
-        priv = private_key_path(app_id, idx)
-        pub = public_key_path(app_id, idx)
-    else:
-        if not dry_run:
-            if priv.exists():
-                print(
-                    "Overwrite: answering y replaces the existing private key file at the path "
-                    "below (the old key material will no longer be in that file)."
-                )
-                o = input(
-                    f"Private key already exists at {priv}. Overwrite? [y/N]: "
-                ).strip().lower()
-                if o != "y":
-                    sys.exit("Aborted.")
-            print(f"Generating Ed25519 keypair under {keys_dir()} ...")
-        else:
-            print("Generating temporary Ed25519 keypair for dry-run output ...")
-        generate_keypair(ossl, priv, pub)
+    if priv.exists():
+        print(
+            "Overwrite: answering y replaces the existing private key file at the path "
+            "below (the old key material will no longer be in that file)."
+        )
+        o = input(f"Private key already exists at {priv}. Overwrite? [y/N]: ").strip().lower()
+        if o != "y":
+            sys.exit("Aborted.")
+    print(f"Generating Ed25519 keypair under {keys_dir()} ...")
+    generate_keypair(ossl, priv, pub)
 
     x = derive_x(ossl, priv)
-    if temp_key_ctx is not None:
-        temp_key_ctx.cleanup()
     t = now_utc()
     sk = build_signing_key(
         kid=kid,
@@ -360,23 +325,15 @@ def cmd_create(
         "updated_at": t,
     }
 
-    write_record(out_path, record, dry_run)
-    if not no_validate and not dry_run:
-        print("Running schema validation ...")
-        run_validate(repo)
+    write_record(out_path, record)
+    print("Running schema validation ...")
+    run_validate(repo)
 
 
-def cmd_update(
-    *,
-    repo: Path,
-    app_id: str,
-    rotate: bool,
-    no_validate: bool,
-    dry_run: bool,
-) -> None:
+def cmd_update(*, repo: Path, app_id: str) -> None:
     path = repo / "registry" / "apps" / f"{app_id}.app.json"
     if not path.is_file():
-        sys.exit(f"No app record at {path}. Use create flow first.")
+        sys.exit(f"No app record at {path}")
 
     data = json.loads(path.read_text(encoding="utf-8"))
     created_at = data.get("created_at")
@@ -464,6 +421,12 @@ def cmd_update(
     if not isinstance(keys, list) or len(keys) < 1:
         sys.exit("Invalid record: signing_keys must be a non-empty array")
 
+    print(
+        "Add a new signing key (key rotation)? "
+        "This generates a new Ed25519 keypair and appends to signing_keys."
+    )
+    rotate = input("Add new signing key? [y/N]: ").strip().lower() == "y"
+
     if rotate:
         idx = len(keys)
         kid_default = f"{app_id}-key-{idx + 1}"
@@ -472,22 +435,11 @@ def cmd_update(
             "distinct from existing kids in signing_keys (e.g. myapp-key-2)."
         )
         kid = input(f"New signing key id (kid) [{kid_default}]: ").strip() or kid_default
-        temp_rotate: Any = None
-        if dry_run:
-            temp_rotate = tempfile.TemporaryDirectory(prefix="metaboost-registry-rotate-")
-            priv = Path(temp_rotate.name) / "private.pem"
-            pub = Path(temp_rotate.name) / "public.pem"
-            print("Generating temporary Ed25519 keypair for dry-run (--rotate-key) ...")
-        else:
-            priv = private_key_path(app_id, idx)
-            pub = public_key_path(app_id, idx)
-            print(f"Generating new Ed25519 keypair at {priv} ...")
-        try:
-            generate_keypair(ossl, priv, pub)
-            x = derive_x(ossl, priv)
-        finally:
-            if temp_rotate is not None:
-                temp_rotate.cleanup()
+        priv = private_key_path(app_id, idx)
+        pub = public_key_path(app_id, idx)
+        print(f"Generating new Ed25519 keypair at {priv} ...")
+        generate_keypair(ossl, priv, pub)
+        x = derive_x(ossl, priv)
         t = now_utc()
         new_sk = build_signing_key(
             kid=kid,
@@ -508,99 +460,44 @@ def cmd_update(
         "updated_at": now_utc(),
     }
 
-    write_record(path, updated, dry_run)
-    if not no_validate and not dry_run:
-        print("Running schema validation ...")
-        run_validate(repo)
+    write_record(path, updated)
+    print("Running schema validation ...")
+    run_validate(repo)
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Create or update a Metaboost registry app record (JSON file + Ed25519 keys)."
-    )
-    parser.add_argument(
-        "--app-id",
-        help="App id (lowercase, hyphens). If omitted, you will be prompted.",
-    )
-    parser.add_argument(
-        "--repo-root",
-        type=Path,
-        default=None,
-        help="Path to metaboost-registry clone (default: infer from script location).",
-    )
-    parser.add_argument(
-        "--create",
-        action="store_true",
-        help="Create a new app record (fails if file already exists).",
-    )
-    parser.add_argument(
-        "--rotate-key",
-        action="store_true",
-        help="When updating: generate a new Ed25519 key and append a signing key entry.",
-    )
-    parser.add_argument(
-        "--no-keygen",
-        action="store_true",
-        help="With --create: use an existing private key at the usual path instead of generating.",
-    )
-    parser.add_argument(
-        "--no-validate",
-        action="store_true",
-        help="Skip npm run validate:registry after writing.",
-    )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Print JSON only; do not write files.",
-    )
-    args = parser.parse_args()
-    repo = args.repo_root or repo_root_from_script()
-    repo = repo.resolve()
-    if not (repo / "schema" / "app-record.schema.json").is_file():
+    if len(sys.argv) > 1:
         sys.exit(
-            f"Could not find schema at {repo / 'schema' / 'app-record.schema.json'}; "
-            "pass --repo-root."
+            "This script takes no arguments.\n"
+            "  ./scripts/registry-app\n"
+            "Run it from the root of your metaboost-registry fork. "
+            "See docs/FIRST-APP-SUBMISSION.md."
         )
 
-    app_id = args.app_id
-    if not app_id:
-        print(
-            "Application id (app_id): stable registry identifier; becomes <app_id>.app.json. "
-            "Lowercase letters, digits, hyphens only; length 3–64; pattern "
-            "^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$."
+    repo = repo_root_from_script().resolve()
+    if not (repo / "schema" / "app-record.schema.json").is_file():
+        sys.exit(
+            f"Could not find schema at {repo / 'schema' / 'app-record.schema.json'}. "
+            "Run ./scripts/registry-app from inside your fork."
         )
-        app_id = input("app_id: ").strip()
+
+    print(
+        "Application id (app_id): stable registry identifier; becomes <app_id>.app.json. "
+        "Lowercase letters, digits, hyphens only; length 3–64; pattern "
+        "^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$."
+    )
+    app_id = input("app_id: ").strip()
     if not app_id:
         sys.exit("app_id is required.")
     validate_app_id(app_id)
 
     out_path = repo / "registry" / "apps" / f"{app_id}.app.json"
-    if args.create and out_path.exists():
-        sys.exit(
-            f"{out_path} already exists. Omit --create to update this app record."
-        )
-
-    is_create = args.create
-    if not is_create:
-        is_create = not out_path.exists()
+    is_create = not out_path.exists()
 
     if is_create:
-        cmd_create(
-            repo=repo,
-            app_id=app_id,
-            rotate=args.rotate_key,
-            no_validate=args.no_validate,
-            dry_run=args.dry_run,
-            no_keygen=args.no_keygen,
-        )
+        cmd_create(repo=repo, app_id=app_id)
     else:
-        cmd_update(
-            repo=repo,
-            app_id=app_id,
-            rotate=args.rotate_key,
-            no_validate=args.no_validate,
-            dry_run=args.dry_run,
-        )
+        cmd_update(repo=repo, app_id=app_id)
 
 
 if __name__ == "__main__":

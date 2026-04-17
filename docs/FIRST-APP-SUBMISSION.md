@@ -56,21 +56,10 @@ py -3 scripts\en\registry-app
 
 or `python scripts\en\registry-app` if `py` is not available.
 
-You will be prompted for `app_id` if you did not pass `--app-id`.
+You will be prompted for `app_id` first. The script accepts **no command-line arguments**.
 
-- **Create**: if `registry/apps/<app_id>.app.json` does not exist, the script runs the **create** flow (Ed25519 keypair under `~/.config/metaboost-registry/keys/`, builds the first `signing_keys[]` entry with fixed `kty` / `crv` / `alg`, writes the JSON file).
-- **Update**: if the file **already exists**, the script runs the **update** flow. **Press Enter** at a prompt to **keep the current value**. Optional `owner.url` must be **https://** only (Metaboost requires HTTPS); type a single `-` to remove it. If an existing record has `http://`, the script asks you to fix or remove it.
-
-Flags (see `./scripts/registry-app --help`, `./scripts/en/registry-app --help`, or on Windows `py -3 scripts\en\registry-app --help`):
-
-| Flag | Purpose |
-|------|---------|
-| `--app-id <id>` | Skip the `app_id` prompt |
-| `--create` | Fail if the app file already exists (strict create) |
-| `--rotate-key` | **Update only**: generate a new Ed25519 key and **append** a signing key |
-| `--no-keygen` | **Create only**: use an existing private PEM at the usual path instead of generating |
-| `--no-validate` | Skip `npm run validate:registry` after writing |
-| `--dry-run` | Print JSON only; do not write the app file (create uses a temporary keypair; update with `--rotate-key` does not persist new private keys) |
+- **Create**: if `registry/apps/<app_id>.app.json` does not exist, the script runs the **create** flow (Ed25519 keypair under `~/.config/metaboost-registry/keys/`, builds the first `signing_keys[]` entry with fixed `kty` / `crv` / `alg`, writes the JSON file, then runs `npm run validate:registry`).
+- **Update**: if the file **already exists**, the script runs the **update** flow. **Press Enter** at a prompt to **keep the current value**. Optional `owner.url` must be **https://** only (Metaboost requires HTTPS); type a single `-` to remove it. If an existing record has `http://`, the script asks you to fix or remove it. You may optionally **add a new signing key** (rotation) when prompted.
 
 Schema constants (`kty`, `crv`, `alg`) are never prompted; they are always set to OKP / Ed25519 / EdDSA.
 
