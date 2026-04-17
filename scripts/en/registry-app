@@ -8,7 +8,7 @@ removed by typing a single hyphen (-).
 Environment:
   OPENSSL_BIN   Path to openssl (default: openssl). Use Homebrew OpenSSL 3 on macOS if needed.
 
-This script accepts no command-line arguments — run ./scripts/registry-app from your fork.
+Run ./scripts/registry-app from the root of your fork.
 """
 
 from __future__ import annotations
@@ -468,9 +468,8 @@ def cmd_update(*, repo: Path, app_id: str) -> None:
 def main() -> None:
     if len(sys.argv) > 1:
         sys.exit(
-            "This script takes no arguments.\n"
-            "  ./scripts/registry-app\n"
-            "Run it from the root of your metaboost-registry fork. "
+            "Usage: ./scripts/registry-app\n"
+            "Run from the root of your metaboost-registry fork. "
             "See docs/FIRST-APP-SUBMISSION.md."
         )
 

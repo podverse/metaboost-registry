@@ -56,7 +56,7 @@ py -3 scripts\en\registry-app
 
 or `python scripts\en\registry-app` if `py` is not available.
 
-You will be prompted for `app_id` first. The script accepts **no command-line arguments**.
+You will be prompted for `app_id` first.
 
 - **Create**: if `registry/apps/<app_id>.app.json` does not exist, the script runs the **create** flow (Ed25519 keypair under `~/.config/metaboost-registry/keys/`, builds the first `signing_keys[]` entry with fixed `kty` / `crv` / `alg`, writes the JSON file, then runs `npm run validate:registry`).
 - **Update**: if the file **already exists**, the script runs the **update** flow. **Press Enter** at a prompt to **keep the current value**. Optional `owner.url` must be **https://** only (Metaboost requires HTTPS); type a single `-` to remove it. If an existing record has `http://`, the script asks you to fix or remove it. You may optionally **add a new signing key** (rotation) when prompted.
