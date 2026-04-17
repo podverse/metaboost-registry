@@ -5,6 +5,11 @@ on:
     paths:
       - "registry/apps/*.app.json"
       - "schema/app-record.schema.json"
+      - "package.json"
+      - "package-lock.json"
+      - "scripts/validate-registry.cjs"
+      - "scripts/registry-app"
+      - "scripts/en/registry-app"
       - ".github/workflows/validate-registry.yml"
   workflow_dispatch:
 
@@ -20,8 +25,8 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Install validators
-        run: npm install --global ajv-cli ajv-formats
+      - name: Install dependencies
+        run: npm ci
 
       - name: Validate registry app files
-        run: ajv validate -c ajv-formats -s schema/app-record.schema.json -d "registry/apps/*.app.json"
+        run: npm run validate:registry

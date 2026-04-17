@@ -37,3 +37,4 @@ Use:
 - `README.md`
 - `CONTRIBUTING.md`
 - `SECURITY.md`
+- `docs/FIRST-APP-SUBMISSION.md`
