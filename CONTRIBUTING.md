@@ -4,8 +4,8 @@ This repository stores app metadata and public signing keys for Metaboost Standa
 
 ## Before Opening a PR
 
-1. Create or update one app file at `registry/apps/<app_id>.app.json`.
-2. Ensure the file matches `schema/app-record.schema.json`.
+1. Prefer `./scripts/registry-app` from the repo root (English prompts live in `scripts/en/registry-app`) to create or update `registry/apps/<app_id>.app.json` (see `docs/FIRST-APP-SUBMISSION.md`).
+2. Ensure the file matches `schema/app-record.schema.json` (`npm ci` then `npm run validate:registry`).
 3. Confirm no private key material is included anywhere in the repository.
 
 ## App Record Requirements

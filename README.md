@@ -34,6 +34,9 @@ See `registry/apps/_example.app.json` and `docs/SCHEMA.md`.
 - `CONTRIBUTING.md`
 - `SECURITY.md`
 - `docs/ONBOARDING.md`
+- `docs/FIRST-APP-SUBMISSION.md`
+
+Use `docs/FIRST-APP-SUBMISSION.md` for contributor setup on **Linux**, **macOS**, or **Windows** (use **WSL2** for the Nix workflow; native Windows can use the local CLI and `python`/`py` to run `scripts/en/registry-app`). The guide covers **`./scripts/registry-app`** (English UI under `scripts/en/`) for create/update app records, Ed25519 keys, validation, and PR steps.
 
 ## Pull Request Requirements
 
