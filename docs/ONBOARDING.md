@@ -22,6 +22,7 @@ Use:
 
 ## 3) Open Pull Request
 
+- Create a branch (recommended: `registry/<app_id>-seed` for first submission).
 - Submit PR with your app record changes.
 - Ensure GitHub Actions check `validate-registry` passes.
 - Merge only after required check is green.

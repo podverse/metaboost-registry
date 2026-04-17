@@ -36,6 +36,15 @@ For key details and examples, see `docs/SCHEMA.md` and `registry/apps/_example.a
 - Updated timestamps where applicable
 - `validate-registry` check passes
 
+## Recommended Branch Naming
+
+Use a simple, descriptive branch pattern:
+
+- Seed registration: `registry/<app_id>-seed` (example: `registry/podverse-seed`)
+- Routine changes: `registry/<app_id>-<change>` (example: `registry/podverse-key-rotation`)
+
+This is a recommendation, not a hard requirement.
+
 ## Merge Gate
 
 PRs must pass GitHub Actions workflow `validate-registry`.
