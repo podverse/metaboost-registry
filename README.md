@@ -29,6 +29,12 @@ Each app file must include:
 
 See `registry/apps/_example.app.json` and `docs/SCHEMA.md`.
 
+## Contributor And Security Docs
+
+- `CONTRIBUTING.md`
+- `SECURITY.md`
+- `docs/ONBOARDING.md`
+
 ## Pull Request Requirements
 
 - App records must validate against `schema/app-record.schema.json`.
