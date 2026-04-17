@@ -1,0 +1,27 @@
+name: validate-registry
+
+on:
+  pull_request:
+    paths:
+      - "registry/apps/*.app.json"
+      - "schema/app-record.schema.json"
+      - ".github/workflows/validate-registry.yml"
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install validators
+        run: npm install --global ajv-cli ajv-formats
+
+      - name: Validate registry app files
+        run: ajv validate -c ajv-formats -s schema/app-record.schema.json -d "registry/apps/*.app.json"
